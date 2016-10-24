@@ -1,4 +1,4 @@
-# IS2545 - DELIVERABLE 3: Cucumber Testing
+# IS2545 - DELIVERABLE 3: Web Testing
 ### Jinrong Liu - jil181
 
     Test Enviornment:    
