@@ -5,7 +5,6 @@
  */
 package OnlineStore;
 
-import cucumber.api.PendingException;
 import cucumber.api.java.After;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
@@ -15,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import static junit.framework.Assert.assertEquals;
 import org.junit.Test;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -23,16 +23,17 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 /**
  *
  * @author AsphaltPanthers
+ * @author lajbrc
  */
 public class StepDefinitions {
     private WebDriver driver;
     private WebDriverWait wait;
     
     private final String HOME_PAGE = "http://store.demoqa.com/";
-    private final String CART_PAGE = "http://store.demoqa.com/products-page/checkout/";
-    private final String emptyCart = "Oops, there is nothing in your cart. ";
-    private final String pwErrorMsg = ": Invalid login credentials.";
-    private final String pwEmpty = ": The password field is empty.";
+    private final String PHONE_PAGE = "http://store.demoqa.com/?s=Search+Productsphone&post_type=wpsc-product";
+    private final String LAPTOP_PAGE = "http://store.demoqa.com/products-page/product-category/macbooks/apple-13-inch-macbook-pro/";
+    private final String emptyCart = "Oops, there is nothing in your cart.";
+    private final String noProduct = "Sorry, but nothing matched your search criteria. Please try again with some different keywords.";
     
     @Given("a Firefox browser")
     public void openFirefox(){
@@ -76,6 +77,8 @@ public class StepDefinitions {
   
     @Then("Message displayed Login Successfully")
     public void message_displayed_Login_Successfully() throws Throwable {
+        String login = driver.findElement(By.className("entry-title")).getText();
+        assertEquals("Your Account", login);
         System.out.println("Login Successfully");
     }
     
@@ -90,8 +93,10 @@ public class StepDefinitions {
     
     @Then("Message displayed Login Failed")
     public void message_displayed_Login_Failed() throws Throwable {
-        String errorMsg1 = driver.findElement(By.xpath(".//*[@class='response']")).getText();
-        assertEquals(pwErrorMsg, errorMsg1);     
+    //    String errorMsg1 = driver.findElement(By.xpath(".//*[@class='response']")).getText();
+    //    String errorMsg1 = driver.findElement(By.className("response")).getText();
+        String errorMsg1 = driver.findElement(By.xpath(".//*[@id='ajax_loginform']/p[1]/strong")).getText(); 
+        assertEquals("ERROR", errorMsg1);     
     }
     
     //Scenario3: Failed to Login with Invalid Username
@@ -103,106 +108,109 @@ public class StepDefinitions {
     
     @Then("Page displayed Login Error Message")
     public void page_displayed_login_error_message(){
-        String errorMsg2 = driver.findElement(By.xpath(".//*[@class='response']/a")).getText();
-        assertEquals(pwEmpty, errorMsg2);
+        String errorMsg2 = driver.findElement(By.xpath(".//*[@id='ajax_loginform']/p[1]/strong")).getText();
+        assertEquals("ERROR", errorMsg2);
     }
     
     //Feature: Search Products
     //Scenario1: Search an Available Product
     @When("User enter Product Name")
-    public void user_enters_prodcut_name(){
-        driver.findElement(By.xpath(".//*[@class='searchform']/a")).sendKeys("phone");
+    public void user_enters_prodcut_name() throws Throwable{
+        WebElement search = driver.findElement(By.className("search"));
+        search.sendKeys("phone");
+        search.sendKeys(Keys.ENTER);
+        Thread.sleep(10000);
+//        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
     }
     
     @Then("Page displayed related products")
     public void page_displayed_related_product(){
-        
+        String phone = driver.getCurrentUrl();
+        assertEquals(PHONE_PAGE, phone);
     }
     
     //Scenario2: Search a Nonexistent Product
     @When("User enter irrelevant product name")
     public void user_enter_irrelevant_product_name(){
-        driver.findElement(By.xpath(".//*[@class='searchform']/a")).sendKeys("scarf");
+        WebElement search = driver.findElement(By.className("searchform"));
+        search.sendKeys("scarf");
+        search.submit();
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);    
     }
     
     @Then("Page displayed message no product matched")
     public void page_displayed_message_no_product_matched(){
-        driver.findElement(By.id("content")).getText(); 
+        String p = driver.findElement(By.xpath(".//*[@id='content']/p")).getText();
+        assertEquals(noProduct, p);
     }
     
     //Feature: Purchase Products
-    //Scenario1: Search a product and add the first result/product to the User cart
-    @Given("User searched for laptop")
-    public void user_searched_for_product(){
-        driver.get(HOME_PAGE);
-        driver.findElement(By.xpath(".//*[@class='searchform']/a")).sendKeys("laptop");
-        driver.findElement(By.xpath(".//*[@class='searchform']/a")).submit();
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);      
+    //Scenario1: Add a product to cart
+    @Given("User in the laptop page")
+    public void laptop_page(){
+        driver = new FirefoxDriver();
+        wait = new WebDriverWait(driver, 30);
+        driver.get(LAPTOP_PAGE);     
     }
     
-    @When("User add the first laptop that appears in the search result to the cart")
-    public void add_the_first_product_to_the_cart(){
-        driver.findElement(By.xpath(".//*[@class='wpsc_buybutton_']")).click();
+    @When("User add the laptop to the cart")
+    public void add_the_laptop_to_the_cart(){
+        driver.findElement(By.className("input-button-buy")).click();
         driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
     }
     
     @And("User navigate to cart page")
-    public void user_navigate_to_cart_page(){
-        driver.findElement(By.xpath(".//*[@class='go_to_checkout']")).click();
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+    public void user_navigate_to_cart_page() throws Throwable{
+        driver.findElement(By.xpath(".//a[@class='go_to_checkout']")).click();
+        Thread.sleep(10000);
     }
     
     @Then("User cart should display with 1 item")
     public void cart_count(){
-//        WebElement count = driver.findElement(By.xpath(".//*[@class='count']"));
-//        assertEquals(count.getText(), "1");
-        String quantity1 = driver.findElement(By.xpath(".//*[@name='quantity']")).getCssValue("value");
+        String quantity1 = driver.findElement(By.className("count")).getText();
         assertEquals("1", quantity1);
     }
     
-    //Scenario2: Remove a Product
-//    @Given("User has one product in the cart")
-//    public void user_have_product_in_cart(){
-//        driver.get(CART_PAGE);
-//        String quantity1 = driver.findElement(By.xpath(".//*[@name='quantity']")).getCssValue("value");
-//        assertEquals("1", quantity1);
-//    }
-    
+    //Scenario2: Remove a Product   
     @And("click on the remove button")
-    public void click_on_remove_button(){
-        driver.findElement(By.xpath(".//*[@value='remove']/a")).click();
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+    public void click_on_remove_button() throws Throwable{
+        driver.findElement(By.cssSelector("input[value='Remove']")).click();
+        Thread.sleep(10000);
     }
     
     @Then("the cart should be empty")
     public void empty_cart(){
-        String empty = driver.findElement(By.xpath(".//*[@class='entry-content']")).getText();
+        String empty = driver.findElement(By.className("entry-content")).getText();
         assertEquals(emptyCart, empty);
     }
     
     //Scenario3: Change Quantity of a Product 
-    @When("user modify the quantity of product")
-    public void change_quantity(){
-        driver.findElement(By.xpath(".//*[@name='quantity']/a")).sendKeys("2");
+    @And("User modify the quantity of product")
+    public void change_quantity() throws Throwable{
+        driver.findElement(By.xpath(".//*[@name='quantity']")).clear();
+        driver.findElement(By.xpath(".//*[@name='quantity']")).sendKeys("2");
         driver.findElement(By.xpath(".//*[@value='Update']")).click();
+        Thread.sleep(10000);
     }
     
     @Then("the quantity of product and the total price should be updated")
     public void quantity_and_price_updated(){
-        String quantity2 = driver.findElement(By.xpath(".//*[@name='quantity']")).getCssValue("value");
+        String quantity2 = driver.findElement(By.xpath(".//*[@name='quantity']")).getAttribute("value");
         assertEquals("2", quantity2);
+        String price = driver.findElement(By.className("pricedisplay")).getText();
+        assertEquals("$1,728.00", price);
     }
     
     //Scenario4: Payment Page
-    @When("User click on Next Button")
-    public void user_click_next_button(){
-        driver.findElement(By.xpath(".//*[@class='wpsc_buybutton_']")).click();
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+    @And("User click on Continue Button")
+    public void user_click_continue_button() throws Throwable{
+        driver.findElement(By.className("step2")).click();
+        Thread.sleep(10000);
     }
     
     @Then("the page should navigate to the Checkout information page")
     public void navigate_to_checkout_information_page(){
-        String ship = driver.findElement(By.xpath(".//*[@class='wpsc_billing_forms ']")).getCssValue("h4");
+        String ship = driver.findElement(By.xpath(".//*[@class='wpsc_billing_forms ']/h4")).getText();
         assertEquals("Your billing/contact details", ship);
     }
     
